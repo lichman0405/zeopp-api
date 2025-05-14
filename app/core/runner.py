@@ -66,7 +66,7 @@ class ZeoRunner:
 
         try:
             result = sh.Command(self.zeo_exec)(*zeo_args, _cwd=str(structure_file.parent), _err_to_out=True)
-            logger.success(f"[zeo++] Execution completed.")
+            logger.info(f"[zeo++] Execution completed.")
 
             if ENABLE_CACHE:
                 cache_dir.mkdir(parents=True, exist_ok=True)
