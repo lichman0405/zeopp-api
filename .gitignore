@@ -1,8 +1,6 @@
 # Python
 __pycache__/
 *.py[cod]
-*.env
-.env
 
 # Workspace data
 workspace/cache/
