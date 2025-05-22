@@ -16,8 +16,11 @@ class ProbeVolumeRequest(BaseModel):
 
 
 class ProbeVolumeResponse(BaseModel):
-    unitcell_volume: float
-    density: float
-    av: dict
-    nav: dict
+    poav_unitcell: float
+    poav_fraction: float
+    poav_mass: float
+    ponav_unitcell: float
+    ponav_fraction: float
+    ponav_mass: float
     cached: bool
+

@@ -3,14 +3,14 @@
 # Author: Shibo Li
 # Date: 2025-05-13
 
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from pathlib import Path
 
 from app.core.runner import ZeoRunner
 from app.models.surface_area import SurfaceAreaResponse
 from app.utils.file import save_uploaded_file
-from app.utils.parser import parse_sa
+from app.utils.parser import parse_sa_from_text
 
 router = APIRouter()
 runner = ZeoRunner()
@@ -27,16 +27,13 @@ async def compute_surface_area(
     """
     Compute accessible surface area using Zeo++ -sa command
     """
-    # Step 1: Save structure file
     input_path: Path = save_uploaded_file(structure_file, prefix="sa")
 
-    # Step 2: Build Zeo++ args
     args = []
     if ha:
         args.append("-ha")
     args += ["-sa", str(chan_radius), str(probe_radius), str(samples), output_filename, input_path.name]
 
-    # Step 3: Execute
     result = runner.run_command(
         structure_file=input_path,
         zeo_args=args,
@@ -54,9 +51,11 @@ async def compute_surface_area(
             }
         )
 
-    # Step 4: Parse .sa file
-    output_path = input_path.parent / output_filename
-    parsed = parse_sa(output_path)
+    output_text = result["output_data"].get(output_filename)
+    if not output_text:
+        raise HTTPException(status_code=500, detail=f"Output file '{output_filename}' was not generated.")
+
+    parsed = parse_sa_from_text(output_text)
 
     return SurfaceAreaResponse(
         **parsed,

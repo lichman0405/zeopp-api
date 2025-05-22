@@ -8,140 +8,184 @@ from pathlib import Path
 from typing import Dict, Any
 
 
-def parse_res(file_path: Path) -> Dict[str, float]:
+def parse_vol_from_text(text: str) -> dict:
     """
-    Parse Zeo++ .res file which contains pore diameters
+    Parse content of Zeo++ .vol file from string for accessible volume.
+
+    Expected format:
+    @ ... AV_A^3: <float> AV_Volume_fraction: <float> AV_cm^3/g: <float>
+    NAV_A^3: <float> NAV_Volume_fraction: <float> NAV_cm^3/g: <float>
+    """
+    lines = text.strip().splitlines()
+    if len(lines) < 2:
+        raise ValueError("VOL output incomplete or malformed.")
+
+    tokens1 = lines[0].split()
+    tokens2 = lines[1].split()
+
+    def extract(name: str, tokens: list[str]) -> float:
+        try:
+            return float(tokens[tokens.index(name) + 1])
+        except (ValueError, IndexError):
+            return 0.0
+
+    return {
+        "av_unitcell": extract("AV_A^3:", tokens1),
+        "av_fraction": extract("AV_Volume_fraction:", tokens1),
+        "av_mass": extract("AV_cm^3/g:", tokens1),
+        "nav_unitcell": extract("NAV_A^3:", tokens2),
+        "nav_fraction": extract("NAV_Volume_fraction:", tokens2),
+        "nav_mass": extract("NAV_cm^3/g:", tokens2),
+    }
+
+
+def parse_chan_from_text(text: str) -> dict:
+    """
+    Parse Zeo++ .chan file content to extract channel dimensionality and diameters.
+
+    Example input:
+    EDI.chan   1 channels identified of dimensionality 1
+    Channel  0  4.89082  3.03868  4.89082
+
+    Returns:
+        dict: {
+            "dimension": int,
+            "included_diameter": float,
+            "free_diameter": float,
+            "included_along_free": float
+        }
+    """
+    lines = text.strip().splitlines()
+    if not lines or len(lines) < 2:
+        raise ValueError("Invalid .chan content, missing required lines")
+
+    # Extract dimensionality
+    dim_line = lines[0]
+    dim = int(dim_line.split("dimensionality")[1].strip()[0])
+
+    # Extract Di, Df, Dif
+    tokens = lines[1].split()
+    return {
+        "dimension": dim,
+        "included_diameter": float(tokens[2]),
+        "free_diameter": float(tokens[3]),
+        "included_along_free": float(tokens[4])
+    }
+
+def parse_sa_from_text(text: str) -> dict:
+    """
+    Parse content of Zeo++ .sa file from string for surface area.
+
+    Expected format:
+    @ ... ASA_A^2: <float> ASA_m^2/cm^3: <float> ASA_m^2/g: <float>
+    NASA_A^2: <float> NASA_m^2/cm^3: <float> NASA_m^2/g: <float>
+
+    Returns:
+        dict with keys:
+        - asa_unitcell
+        - asa_volume
+        - asa_mass
+        - nasa_unitcell
+        - nasa_volume
+        - nasa_mass
+    """
+    lines = text.strip().splitlines()
+    if len(lines) < 2:
+        raise ValueError("SA output incomplete or malformed.")
+
+    tokens1 = lines[0].split()
+    tokens2 = lines[1].split()
+
+    def extract(name: str, tokens: list[str]) -> float:
+        try:
+            return float(tokens[tokens.index(name) + 1])
+        except (ValueError, IndexError):
+            return 0.0  # or raise a more descriptive error if desired
+
+    return {
+        "asa_unitcell": extract("ASA_A^2:", tokens1),
+        "asa_volume": extract("ASA_m^2/cm^3:", tokens1),
+        "asa_mass": extract("ASA_m^2/g:", tokens1),
+        "nasa_unitcell": extract("NASA_A^2:", tokens2),
+        "nasa_volume": extract("NASA_m^2/cm^3:", tokens2),
+        "nasa_mass": extract("NASA_m^2/g:", tokens2),
+    }
+
+
+def parse_volpo_from_text(text: str) -> dict:
+    """
+    Parse content of Zeo++ .volpo file string for probe occupiable volume.
 
     Format:
-        <filename> <included_diameter> <free_diameter> <included_along_free>
-
-    Returns:
-        Dict[str, float]: Parsed diameters
+    @ ... POAV_A^3: <float> POAV_Volume_fraction: <float> POAV_cm^3/g: <float>
+    PONAV_A^3: <float> PONAV_Volume_fraction: <float> PONAV_cm^3/g: <float>
     """
-    line = file_path.read_text().strip()
-    parts = line.split()
+    lines = text.strip().splitlines()
+    if len(lines) < 2:
+        raise ValueError("VOLPO output malformed")
+
+    tokens1 = lines[0].split()
+    tokens2 = lines[1].split()
+
+    def extract(key: str, tokens: list[str]) -> float:
+        try:
+            return float(tokens[tokens.index(key) + 1])
+        except (ValueError, IndexError):
+            return 0.0
+
     return {
-        "included_diameter": float(parts[1]),
-        "free_diameter": float(parts[2]),
-        "included_along_free": float(parts[3])
+        "poav_unitcell": extract("POAV_A^3:", tokens1),
+        "poav_fraction": extract("POAV_Volume_fraction:", tokens1),
+        "poav_mass": extract("POAV_cm^3/g:", tokens1),
+        "ponav_unitcell": extract("PONAV_A^3:", tokens2),
+        "ponav_fraction": extract("PONAV_Volume_fraction:", tokens2),
+        "ponav_mass": extract("PONAV_cm^3/g:", tokens2),
     }
 
 
-def parse_sa(file_path: Path) -> Dict[str, Any]:
+def parse_strinfo_from_text(text: str) -> dict:
     """
-    Parse Zeo++ .sa file which contains accessible surface area
+    Parse .strinfo file content and extract framework count and dimensionality.
+
+    Expected format:
+    Molecule types found: 1
+    Molecule 0: Dimensionality = 3
+    ...
 
     Returns:
-        Dict[str, Any]: Parsed ASA and NASA data
+        {
+            "num_frameworks": int,
+            "frameworks": List[{"id": int, "dimensionality": int}]
+        }
     """
-    content = file_path.read_text()
-    lines = content.splitlines()
-    result = {}
-
+    lines = text.strip().splitlines()
+    frameworks = []
     for line in lines:
-        if "Unitcell_volume" in line:
-            match = re.search(r"Unitcell_volume:\s*([\d\.]+)\s+Density:\s*([\d\.]+)", line)
-            if match:
-                result["unitcell_volume"] = float(match.group(1))
-                result["density"] = float(match.group(2))
-        elif "ASA_" in line:
-            values = list(map(float, re.findall(r"[\d\.]+", line)))
-            result["asa"] = {"A2": values[0], "m2/cm3": values[1], "m2/g": values[2]}
-        elif "NASA_" in line:
-            values = list(map(float, re.findall(r"[\d\.]+", line)))
-            result["nasa"] = {"A2": values[0], "m2/cm3": values[1], "m2/g": values[2]}
-    return result
-
-
-def parse_vol(file_path: Path) -> Dict[str, Any]:
-    """
-    Parse Zeo++ .vol or .volpo file which contains accessible volume
-
-    Returns:
-        Dict[str, Any]: Parsed AV or POAV data
-    """
-    content = file_path.read_text()
-    lines = content.splitlines()
-    result = {}
-
-    for line in lines:
-        if "Unitcell_volume" in line:
-            match = re.search(r"Unitcell_volume:\s*([\d\.]+)\s+Density:\s*([\d\.]+)", line)
-            if match:
-                result["unitcell_volume"] = float(match.group(1))
-                result["density"] = float(match.group(2))
-        elif "AV_" in line or "POAV_" in line:
-            values = list(map(float, re.findall(r"[\d\.]+", line)))
-            result["av"] = {"A3": values[0], "volume_fraction": values[1], "cm3/g": values[2]}
-        elif "NAV_" in line or "PONAV_" in line:
-            values = list(map(float, re.findall(r"[\d\.]+", line)))
-            result["nav"] = {"A3": values[0], "volume_fraction": values[1], "cm3/g": values[2]}
-    return result
-
-
-def parse_chan(file_path: Path) -> Dict[str, Any]:
-    """
-    Parse Zeo++ .chan file which contains channel dimensionality
-
-    Returns:
-        Dict[str, Any]: Number of channels and diameters
-    """
-    lines = file_path.read_text().splitlines()
-    result = {}
-
-    match = re.search(r"(\d+) channels identified of dimensionality (\d+)", lines[0])
-    if match:
-        result["num_channels"] = int(match.group(1))
-        result["dimensionality"] = int(match.group(2))
-
-    channels = []
-    for line in lines:
-        if line.startswith("Channel"):
-            parts = line.strip().split()
-            channels.append({
-                "id": int(parts[1]),
-                "included_diameter": float(parts[2]),
-                "free_diameter": float(parts[3]),
-                "included_along_free": float(parts[4])
+        if "Molecule types found" in line:
+            n = int(line.strip().split(":")[1])
+        elif line.startswith("Molecule"):
+            tokens = line.strip().split()
+            frameworks.append({
+                "id": int(tokens[1].strip(":")),
+                "dimensionality": int(tokens[-1])
             })
-    result["channels"] = channels
-    return result
-
-
-def parse_strinfo(file_path: Path) -> Dict[str, Any]:
-    """
-    Parse Zeo++ .strinfo file which contains framework/molecule info
-
-    Returns:
-        Dict[str, Any]: Framework dimensionality and molecule count
-    """
-    content = file_path.read_text()
-    lines = content.splitlines()
-
-    result = {
-        "molecules": 0,
-        "frameworks": []
+    return {
+        "num_frameworks": len(frameworks),
+        "frameworks": frameworks
     }
 
-    for line in lines:
-        if "Molecules identified:" in line:
-            result["molecules"] = int(re.search(r"(\d+)", line).group(1))
-        if line.startswith("Framework"):
-            parts = line.strip().split()
-            result["frameworks"].append({
-                "id": int(parts[1]),
-                "dimensionality": int(parts[-1])
-            })
-    return result
 
-
-def parse_oms(file_path: Path) -> Dict[str, int]:
+def parse_res_from_text(text: str) -> dict:
     """
-    Parse Zeo++ .oms file which contains Open Metal Sites count
-
-    Returns:
-        Dict[str, int]: Number of OMS identified
+    Parse .res file text to extract pore diameters.
+    Expected format:
+    EDI.res    4.89082 3.03868  4.81969
     """
-    content = file_path.read_text()
-    match = re.search(r"OMS detected:\s*(\d+)", content)
-    return {"oms_count": int(match.group(1)) if match else 0}
+    tokens = text.strip().split()
+    if len(tokens) < 4:
+        raise ValueError("Malformed .res file output")
+    return {
+        "included_diameter": float(tokens[1]),
+        "free_diameter": float(tokens[2]),
+        "included_along_free": float(tokens[3])
+    }

@@ -18,3 +18,4 @@ class PoreSizeDistRequest(BaseModel):
 class PoreSizeDistResponse(BaseModel):
     content: str
     cached: bool
+

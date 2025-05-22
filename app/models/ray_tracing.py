@@ -18,3 +18,4 @@ class RayTracingRequest(BaseModel):
 class RayTracingResponse(BaseModel):
     content: str
     cached: bool
+

@@ -3,7 +3,7 @@
 # Author: Shibo Li
 # Date: 2025-05-13
 
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from pathlib import Path
 
@@ -37,7 +37,6 @@ async def generate_distance_grid(
         args.append("-ha")
     args += [f"-{mode}", input_path.name]
 
-    # Expected output filenames depend on mode
     if mode.startswith("gridG"):
         output_files = [f"{output_basename}.cube"]
     elif mode == "gridBOV":
@@ -57,6 +56,11 @@ async def generate_distance_grid(
             status_code=500,
             content={"success": False, "message": "Zeo++ failed", "stderr": result["stderr"]}
         )
+
+    # 检查每个输出文件是否在 output_data 中（非 None 表示确实生成了）
+    missing_files = [f for f in output_files if f not in result["output_data"]]
+    if missing_files:
+        raise HTTPException(status_code=500, detail=f"Missing output files: {', '.join(missing_files)}")
 
     return DistanceGridResponse(
         message="Grid file(s) generated successfully",

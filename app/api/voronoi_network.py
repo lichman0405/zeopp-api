@@ -3,7 +3,7 @@
 # Author: Shibo Li
 # Date: 2025-05-13
 
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from pathlib import Path
 
@@ -25,9 +25,7 @@ async def export_voronoi_network(
     """
     input_path: Path = save_uploaded_file(structure_file, prefix="nt2")
 
-    args = []
-    args.append("-r" if use_radii else "-nor")
-    args += ["-nt2", input_path.name]
+    args = ["-r" if use_radii else "-nor", "-nt2", input_path.name]
 
     result = runner.run_command(
         structure_file=input_path,
@@ -42,8 +40,9 @@ async def export_voronoi_network(
             content={"success": False, "message": "Zeo++ failed", "stderr": result["stderr"]}
         )
 
-    output_path = input_path.parent / output_filename
-    content = output_path.read_text()
+    content = result["output_data"].get(output_filename)
+    if not content:
+        raise HTTPException(status_code=500, detail=f"Output file '{output_filename}' was not generated.")
 
     return VoronoiNetworkResponse(
         content=content,

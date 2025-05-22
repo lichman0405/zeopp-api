@@ -3,14 +3,14 @@
 # Author: Shibo Li
 # Date: 2025-05-13
 
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from pathlib import Path
 
-from app.models.pore_diameter import PoreDiameterRequest, PoreDiameterResponse
+from app.models.pore_diameter import PoreDiameterResponse
 from app.core.runner import ZeoRunner
 from app.utils.file import save_uploaded_file
-from app.utils.parser import parse_res
+from app.utils.parser import parse_res_from_text
 
 router = APIRouter()
 runner = ZeoRunner()
@@ -24,16 +24,13 @@ async def compute_pore_diameter(
     """
     Compute largest included / free / along-free sphere diameters using Zeo++ -res
     """
-    # Step 1: Save structure file
     input_path: Path = save_uploaded_file(structure_file, prefix="pore")
 
-    # Step 2: Construct Zeo++ args
     args = []
     if ha:
         args.append("-ha")
     args += ["-res", output_filename, input_path.name]
 
-    # Step 3: Run Zeo++
     result = runner.run_command(
         structure_file=input_path,
         zeo_args=args,
@@ -51,9 +48,11 @@ async def compute_pore_diameter(
             }
         )
 
-    # Step 4: Parse result file
-    output_path = input_path.parent / output_filename
-    parsed = parse_res(output_path)
+    content = result["output_data"].get(output_filename)
+    if not content:
+        raise HTTPException(status_code=500, detail=f"Output file '{output_filename}' was not generated.")
+
+    parsed = parse_res_from_text(content)
 
     return PoreDiameterResponse(
         **parsed,

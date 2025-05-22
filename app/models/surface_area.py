@@ -16,8 +16,11 @@ class SurfaceAreaRequest(BaseModel):
 
 
 class SurfaceAreaResponse(BaseModel):
-    unitcell_volume: float
-    density: float
-    asa: dict
-    nasa: dict
+    asa_unitcell: float
+    asa_volume: float
+    asa_mass: float
+    nasa_unitcell: float
+    nasa_volume: float
+    nasa_mass: float
     cached: bool
+

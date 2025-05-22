@@ -15,3 +15,4 @@ class VoronoiNetworkRequest(BaseModel):
 class VoronoiNetworkResponse(BaseModel):
     content: str
     cached: bool
+

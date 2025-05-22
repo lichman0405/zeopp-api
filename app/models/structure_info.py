@@ -17,6 +17,7 @@ class FrameworkEntry(BaseModel):
 
 
 class StructureInfoResponse(BaseModel):
-    molecules: int
-    frameworks: List[FrameworkEntry]
+    num_frameworks: int
+    frameworks: List[dict]  # Each dict has id + dimensionality
     cached: bool
+

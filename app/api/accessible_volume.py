@@ -3,14 +3,14 @@
 # Author: Shibo Li
 # Date: 2025-05-13
 
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from pathlib import Path
 
 from app.core.runner import ZeoRunner
 from app.models.accessible_volume import AccessibleVolumeResponse
 from app.utils.file import save_uploaded_file
-from app.utils.parser import parse_vol
+from app.utils.parser import parse_vol_from_text
 
 router = APIRouter()
 runner = ZeoRunner()
@@ -51,8 +51,11 @@ async def compute_accessible_volume(
             }
         )
 
-    output_path = input_path.parent / output_filename
-    parsed = parse_vol(output_path)
+    output_text = result["output_data"].get(output_filename)
+    if not output_text:
+        raise HTTPException(status_code=500, detail=f"Output file '{output_filename}' was not generated.")
+
+    parsed = parse_vol_from_text(output_text)
 
     return AccessibleVolumeResponse(
         **parsed,

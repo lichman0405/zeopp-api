@@ -12,7 +12,8 @@ class PoreDiameterRequest(BaseModel):
 
 
 class PoreDiameterResponse(BaseModel):
-    included_diameter: float         # Included diameter
-    free_diameter: float             # Free diameter
-    included_along_free: float       # Included along free diameter
-    cached: bool          # Whether the result is cached    
+    included_diameter: float
+    free_diameter: float
+    included_along_free: float
+    cached: bool
+

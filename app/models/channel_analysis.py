@@ -12,16 +12,11 @@ class ChannelAnalysisRequest(BaseModel):
     output_filename: Optional[str] = Field("result.chan", description="Optional output file name")
     ha: Optional[bool] = Field(True, description="Whether to use high accuracy mode (-ha)")
 
-
-class ChannelEntry(BaseModel):
-    id: int
+class ChannelAnalysisResponse(BaseModel):
+    dimension: int
     included_diameter: float
     free_diameter: float
     included_along_free: float
-
-
-class ChannelAnalysisResponse(BaseModel):
-    num_channels: int
-    dimensionality: int
-    channels: List[ChannelEntry]
     cached: bool
+
+

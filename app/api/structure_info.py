@@ -3,14 +3,14 @@
 # Author: Shibo Li
 # Date: 2025-05-13
 
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from pathlib import Path
 
 from app.core.runner import ZeoRunner
 from app.models.structure_info import StructureInfoResponse
 from app.utils.file import save_uploaded_file
-from app.utils.parser import parse_strinfo
+from app.utils.parser import parse_strinfo_from_text
 
 router = APIRouter()
 runner = ZeoRunner()
@@ -44,8 +44,11 @@ async def analyze_structure_info(
             }
         )
 
-    output_path = input_path.parent / output_filename
-    parsed = parse_strinfo(output_path)
+    content = result["output_data"].get(output_filename)
+    if not content:
+        raise HTTPException(status_code=500, detail=f"Output file '{output_filename}' was not generated.")
+
+    parsed = parse_strinfo_from_text(content)
 
     return StructureInfoResponse(
         **parsed,

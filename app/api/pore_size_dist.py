@@ -3,7 +3,7 @@
 # Author: Shibo Li
 # Date: 2025-05-13
 
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from pathlib import Path
 
@@ -50,8 +50,9 @@ async def compute_pore_size_distribution(
             }
         )
 
-    output_path = input_path.parent / output_filename
-    content = output_path.read_text()
+    content = result["output_data"].get(output_filename)
+    if not content:
+        raise HTTPException(status_code=500, detail=f"Output file '{output_filename}' was not generated.")
 
     return PoreSizeDistResponse(
         content=content,

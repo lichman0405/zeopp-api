@@ -15,9 +15,12 @@ class AccessibleVolumeRequest(BaseModel):
     ha: Optional[bool] = Field(True, description="Whether to use high accuracy mode (-ha)")
 
 
+# Response Model
 class AccessibleVolumeResponse(BaseModel):
     unitcell_volume: float
     density: float
     av: dict
     nav: dict
     cached: bool
+
+
