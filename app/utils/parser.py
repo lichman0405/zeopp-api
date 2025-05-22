@@ -168,38 +168,6 @@ def parse_volpo_from_text(text: str) -> dict:
     }
 
 
-def parse_strinfo_from_text(text: str) -> dict:
-    """
-    Parse .strinfo file content and extract framework count and dimensionality.
-
-    Expected format:
-    Molecule types found: 1
-    Molecule 0: Dimensionality = 3
-    ...
-
-    Returns:
-        {
-            "num_frameworks": int,
-            "frameworks": List[{"id": int, "dimensionality": int}]
-        }
-    """
-    lines = text.strip().splitlines()
-    frameworks = []
-    for line in lines:
-        if "Molecule types found" in line:
-            n = int(line.strip().split(":")[1])
-        elif line.startswith("Molecule"):
-            tokens = line.strip().split()
-            frameworks.append({
-                "id": int(tokens[1].strip(":")),
-                "dimensionality": int(tokens[-1])
-            })
-    return {
-        "num_frameworks": len(frameworks),
-        "frameworks": frameworks
-    }
-
-
 def parse_res_from_text(text: str) -> dict:
     """
     Parse .res file text to extract pore diameters.
@@ -213,4 +181,126 @@ def parse_res_from_text(text: str) -> dict:
         "included_diameter": float(tokens[1]),
         "free_diameter": float(tokens[2]),
         "included_along_free": float(tokens[3])
+    }
+
+
+def parse_block_from_text(text: str) -> dict:
+    """
+    Parse .block output content from Zeo++ to extract summary info.
+
+    Example lines:
+    Identified 0 channels and 2 pockets
+    139 nodes assigned to pores.
+    """
+    result = {
+        "channels": 0,
+        "pockets": 0,
+        "nodes_assigned": 0,
+        "raw": text.strip()
+    }
+
+    for line in text.splitlines():
+        if "Identified" in line and "channels" in line and "pockets" in line:
+            try:
+                parts = line.split()
+                result["channels"] = int(parts[1])
+                result["pockets"] = int(parts[4])
+            except Exception:
+                pass
+        elif "nodes assigned to pores" in line:
+            try:
+                result["nodes_assigned"] = int(line.split()[0])
+            except Exception:
+                pass
+
+    return result
+
+
+def parse_strinfo_from_text(text: str) -> dict:
+    """
+    Parse .strinfo file content and extract framework count and dimensionality.
+
+    Expected format:
+    Molecule types found: 1
+    Molecule 0: Dimensionality = 3
+    Identified 1 channels and 0 pockets
+    108 nodes assigned to pores.
+
+    Returns:
+        {
+            "num_frameworks": int,
+            "frameworks": List[{"id": int, "dimensionality": int}],
+            "channels": int,
+            "pockets": int,
+            "nodes_assigned": int,
+            "raw": str
+        }
+    """
+    lines = text.strip().splitlines()
+    frameworks = []
+    channels = 0
+    pockets = 0
+    nodes = 0
+
+    for line in lines:
+        if "Molecule types found" in line:
+            pass  # total is counted by len(frameworks)
+        elif line.startswith("Molecule"):
+            tokens = line.strip().split()
+            frameworks.append({
+                "id": int(tokens[1].strip(":")),
+                "dimensionality": int(tokens[-1])
+            })
+        elif "Identified" in line and "channels" in line:
+            parts = line.split()
+            channels = int(parts[1])
+            pockets = int(parts[4])
+        elif "nodes assigned to pores" in line:
+            try:
+                nodes = int(line.split()[0])
+            except Exception:
+                pass
+
+    return {
+        "num_frameworks": len(frameworks),
+        "frameworks": frameworks,
+        "channels": channels,
+        "pockets": pockets,
+        "nodes_assigned": nodes,
+        "raw": text.strip()
+    }
+
+
+def parse_nt2_from_text(text: str) -> dict:
+    """
+    Parse Zeo++ .nt2 file to extract basic Voronoi network statistics.
+
+    Looks for:
+    - Node count: lines starting with 'node' (ignoring comments)
+    - Edge count: lines starting with 'edge'
+
+    Returns:
+        {
+            "node_count": int,
+            "edge_count": int,
+            "raw": str
+        }
+    """
+    lines = text.strip().splitlines()
+    node_count = 0
+    edge_count = 0
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("node"):
+            node_count += 1
+        elif line.startswith("edge"):
+            edge_count += 1
+
+    return {
+        "node_count": node_count,
+        "edge_count": edge_count,
+        "raw": text.strip()
     }

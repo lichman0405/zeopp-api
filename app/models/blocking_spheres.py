@@ -15,5 +15,8 @@ class BlockingSpheresRequest(BaseModel):
 
 
 class BlockingSpheresResponse(BaseModel):
-    content: str
-    cached: bool
+    channels: int = Field(..., description="Number of channels identified")
+    pockets: int = Field(..., description="Number of pockets identified")
+    nodes_assigned: int = Field(..., description="Number of nodes assigned to pores")
+    raw: str = Field(..., description="Raw .block output")
+    cached: bool = Field(..., description="Whether the result was served from cache")
