@@ -60,5 +60,6 @@ async def compute_channel_analysis(
 
     return ChannelAnalysisResponse(
         **parsed,
+        raw_text=output_text,
         cached=result["cached"]
     )

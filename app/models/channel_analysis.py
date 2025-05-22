@@ -17,6 +17,8 @@ class ChannelAnalysisResponse(BaseModel):
     included_diameter: float
     free_diameter: float
     included_along_free: float
+    raw_text: str = Field(..., description="Original .chan output")
     cached: bool
+
 
 
