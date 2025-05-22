@@ -14,12 +14,10 @@ from app.api import (
     probe_volume,
     channel_analysis,
     structure_info,
-    oms_detection,
     pore_size_dist,
     ray_tracing,
     blocking_spheres,
     distance_grid,
-    convert_xyz,
     voronoi_network
 )
 
@@ -45,10 +43,8 @@ app.include_router(accessible_volume.router)
 app.include_router(probe_volume.router)
 app.include_router(channel_analysis.router)
 app.include_router(structure_info.router)
-app.include_router(oms_detection.router)
 app.include_router(pore_size_dist.router)
 app.include_router(ray_tracing.router)
 app.include_router(blocking_spheres.router)
 app.include_router(distance_grid.router)
-app.include_router(convert_xyz.router)
 app.include_router(voronoi_network.router)
