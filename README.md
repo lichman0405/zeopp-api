@@ -1,8 +1,6 @@
-# 🧩 Zeo++ API Service
+# Zeo++ API Service
 
 A production-ready FastAPI service that wraps [Zeo++](http://www.zeoplusplus.org/) structural analysis functionality as containerized HTTP endpoints.
-
----
 
 ## 🚀 Features
 
@@ -19,14 +17,12 @@ A production-ready FastAPI service that wraps [Zeo++](http://www.zeoplusplus.org
 
 ```text
 app/
-├── api/            # FastAPI route modules (one per Zeo++ feature)
-├── models/         # Pydantic v2 request/response models
-├── core/           # ZeoRunner, caching, config
-├── utils/          # File saving, logging, output parser
+├── api/            # All FastAPI route modules (one per Zeo++ feature)
+├── models/         # Pydantic request/response models
+├── core/           # Runner + config
+├── utils/          # File save, logging, Zeo++ output parser
 ├── main.py         # Entrypoint to register all routers
-workspace/
-├── tmp/            # Temporary run files
-├── cache/          # Hashed result cache
+workspace/          # tmp/ and cache/ for intermediate files
 ```
 
 ---
@@ -42,73 +38,126 @@ LOG_LEVEL=INFO
 
 ---
 
-## 🐳 Docker Compose
-
-```yaml
-version: "3.9"
-
-services:
-  zeopp-api:
-    build: .
-    ports:
-      - "9876:8000"
-    volumes:
-      - ./workspace:/app/workspace
-    env_file:
-      - .env
-```
-
-Build and run:
+## 🐳 Docker Build & Run
 
 ```bash
-docker compose up --build
+docker build -t zeopp-api .
+docker run -it --rm -p 8000:8000 zeopp-api
 ```
 
 ---
 
-## 🧪 Example: Call API via curl
+## 📚 API Reference
 
-```bash
-curl -X POST http://localhost:9876/api/pore_diameter   -F "structure_file=@EDI.cssr"   -F "ha=true"   -F "output_filename=EDI.res"
-```
-
-Response:
-
-```json
-{
-  "included_diameter": 4.89,
-  "free_diameter": 3.03,
-  "included_along_free": 4.81,
-  "cached": false
-}
-```
+### `/api/pore_diameter` → Zeo++ `-res`
+| Field             | Type    | Required | Default       | Description                              |
+|------------------|---------|----------|---------------|------------------------------------------|
+| `structure_file` | file    | ✅        | —             | Structure file (`.cif`, `.cssr`, etc.)   |
+| `ha`             | bool    | ❌        | `true`        | Use high-accuracy mode                   |
+| `output_filename`| str     | ❌        | `result.res`  | Custom output filename                   |
 
 ---
 
-## 📚 Supported Endpoints
+### `/api/surface_area` → Zeo++ `-sa`
+| Field             | Type    | Required | Default       | Description                              |
+|------------------|---------|----------|---------------|------------------------------------------|
+| `structure_file` | file    | ✅        | —             | Input structure                          |
+| `chan_radius`    | float   | ✅        | —             | Probe radius for accessibility check     |
+| `probe_radius`   | float   | ✅        | —             | Monte Carlo sampling radius              |
+| `samples`        | int     | ✅        | —             | Samples per atom                         |
+| `output_filename`| str     | ❌        | `result.sa`   | Output filename                          |
+| `ha`             | bool    | ❌        | `true`        | High accuracy mode                       |
 
-| Route                     | Zeo++ Flag         | Output Type  | Format     |
-|--------------------------|--------------------|--------------|------------|
-| `/api/pore_diameter`     | `-res`             | 3 floats     | JSON       |
-| `/api/surface_area`      | `-sa`              | ASA/NASA     | JSON       |
-| `/api/accessible_volume` | `-vol`             | AV/NAV       | JSON       |
-| `/api/probe_volume`      | `-volpo`           | POAV/PONAV   | JSON       |
-| `/api/channel_analysis`  | `-chan`            | diameters    | JSON       |
-| `/api/structure_info`    | `-strinfo`         | frameworks   | JSON       |
-| `/api/pore_size_dist`    | `-psd`             | histogram    | Raw Text   |
-| `/api/ray_tracing`       | `-ray_atom`        | histogram    | Raw Text   |
-| `/api/blocking_spheres`  | `-block`           | spheres      | Raw Text   |
-| `/api/distance_grid`     | `-grid*`           | .cube/.bov   | File       |
-| `/api/voronoi_network`   | `-nt2 -r\|-nor`    | network      | Raw Text   |
+---
+
+### `/api/accessible_volume` → Zeo++ `-vol`
+| Field             | Type    | Required | Default       | Description                              |
+|------------------|---------|----------|---------------|------------------------------------------|
+| `structure_file` | file    | ✅        | —             | Structure input file                     |
+| `chan_radius`    | float   | ✅        | —             | Probe for accessibility                  |
+| `probe_radius`   | float   | ✅        | —             | Probe for volume measurement             |
+| `samples`        | int     | ✅        | —             | Samples per unit cell                    |
+| `output_filename`| str     | ❌        | `result.vol`  | Custom output filename                   |
+| `ha`             | bool    | ❌        | `true`        | Use high accuracy                        |
+
+---
+
+### `/api/probe_volume` → Zeo++ `-volpo`
+Same parameters as `/api/accessible_volume`.
+
+---
+
+### `/api/channel_analysis` → Zeo++ `-chan`
+| Field             | Type    | Required | Default       | Description                              |
+|------------------|---------|----------|---------------|------------------------------------------|
+| `structure_file` | file    | ✅        | —             | Input structure file                     |
+| `probe_radius`   | float   | ✅        | —             | Spherical probe radius                   |
+| `output_filename`| str     | ❌        | `result.chan` | Output file                              |
+| `ha`             | bool    | ❌        | `true`        | High accuracy                            |
+
+---
+
+### `/api/pore_size_dist` → Zeo++ `-psd`
+| Field             | Type    | Required | Default       | Description                              |
+|------------------|---------|----------|---------------|------------------------------------------|
+| `structure_file` | file    | ✅        | —             | Structure file                           |
+| `chan_radius`    | float   | ✅        | —             | Channel probe radius                     |
+| `probe_radius`   | float   | ✅        | —             | Probe radius for sampling                |
+| `samples`        | int     | ✅        | —             | Monte Carlo samples                      |
+| `output_filename`| str     | ❌        | `result.psd_histo` | Output file name                   |
+| `ha`             | bool    | ❌        | `true`        | High accuracy                            |
+
+---
+
+### `/api/ray_tracing` → Zeo++ `-ray_atom`
+Same as `/api/pore_size_dist` but for ray tracing.
+
+---
+
+### `/api/blocking_spheres` → Zeo++ `-block`
+| Field             | Type    | Required | Default       | Description                              |
+|------------------|---------|----------|---------------|------------------------------------------|
+| `structure_file` | file    | ✅        | —             | Input file                               |
+| `probe_radius`   | float   | ✅        | —             | Blocking probe radius                    |
+| `samples`        | int     | ✅        | —             | Monte Carlo samples                      |
+| `output_filename`| str     | ❌        | `result.block`| Blocking sphere output                   |
+| `ha`             | bool    | ❌        | `true`        | Use high accuracy                        |
+
+---
+
+### `/api/distance_grid` → Zeo++ `-gridG`, `-gridBOV`, etc.
+| Field             | Type    | Required | Default      | Description                              |
+|------------------|---------|----------|--------------|------------------------------------------|
+| `structure_file` | file    | ✅        | —            | Input structure                          |
+| `mode`           | str     | ✅        | —            | `gridG`, `gridGBohr`, `gridBOV`          |
+| `output_basename`| str     | ❌        | `result`     | Base name of output files                |
+| `ha`             | bool    | ❌        | `true`       | High accuracy mode                       |
+
+---
+
+### `/api/structure_info` → Zeo++ `-strinfo`
+| Field             | Type    | Required | Default          | Description                              |
+|------------------|---------|----------|------------------|------------------------------------------|
+| `structure_file` | file    | ✅        | —                | MOF structure                            |
+| `output_filename`| str     | ❌        | `result.strinfo` | Output filename                          |
+
+---
+
+### `/api/voronoi_network` → Zeo++ `-nt2`
+| Field             | Type    | Required | Default        | Description                              |
+|------------------|---------|----------|----------------|------------------------------------------|
+| `structure_file` | file    | ✅        | —              | MOF structure                            |
+| `use_radii`      | bool    | ❌        | `true`         | Use atomic radii or not (-r vs -nor)     |
+| `output_filename`| str     | ❌        | `result.nt2`   | Output file name                         |
 
 ---
 
 ## 🔒 Notes
 
-- Accepts `.cssr`, `.cif`, `.pdb` structure files.
-- Use `output_filename` to override default names.
-- Logs and results are auto-organized under `workspace/`.
-- Caching based on SHA256 file + args hash.
+- Supported file formats: `.cssr`, `.cif`, `.pdb`
+- All endpoints support `ha=true` for high-accuracy mode.
+- Set `output_filename` to customize output file names.
+- All results are cached based on file hash + parameters.
 
 ---
 
