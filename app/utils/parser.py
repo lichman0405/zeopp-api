@@ -10,11 +10,18 @@ from typing import Dict, Any
 
 def parse_vol_from_text(text: str) -> dict:
     """
-    Parse content of Zeo++ .vol file from string for accessible volume.
-
+    Parse content of Zeo++ .vol file from string for volume and density.
     Expected format:
-    @ ... AV_A^3: <float> AV_Volume_fraction: <float> AV_cm^3/g: <float>
+    @ ... Unitcell_volume: <float> Density: <float>
+    AV_A^3: <float> AV_Volume_fraction: <float> AV_cm^3/g: <float>
     NAV_A^3: <float> NAV_Volume_fraction: <float> NAV_cm^3/g: <float>
+    
+    Returns:
+        dict with keys:
+        - unitcell_volume
+        - density
+        - av (dict with keys: unitcell, fraction, mass)
+        - nav (dict with keys: unitcell, fraction, mass)
     """
     lines = text.strip().splitlines()
     if len(lines) < 2:
@@ -30,47 +37,65 @@ def parse_vol_from_text(text: str) -> dict:
             return 0.0
 
     return {
-        "av_unitcell": extract("AV_A^3:", tokens1),
-        "av_fraction": extract("AV_Volume_fraction:", tokens1),
-        "av_mass": extract("AV_cm^3/g:", tokens1),
-        "nav_unitcell": extract("NAV_A^3:", tokens2),
-        "nav_fraction": extract("NAV_Volume_fraction:", tokens2),
-        "nav_mass": extract("NAV_cm^3/g:", tokens2),
+        "unitcell_volume": extract("Unitcell_volume:", tokens1),
+        "density": extract("Density:", tokens1),
+        "av": {
+            "unitcell": extract("AV_A^3:", tokens1),
+            "fraction": extract("AV_Volume_fraction:", tokens1),
+            "mass": extract("AV_cm^3/g:", tokens1),
+        },
+        "nav": {
+            "unitcell": extract("NAV_A^3:", tokens2),
+            "fraction": extract("NAV_Volume_fraction:", tokens2),
+            "mass": extract("NAV_cm^3/g:", tokens2),
+        }
     }
 
 
 def parse_chan_from_text(text: str) -> dict:
     """
-    Parse Zeo++ .chan file content to extract channel dimensionality and diameters.
-
-    Example input:
-    EDI.chan   1 channels identified of dimensionality 1
-    Channel  0  4.89082  3.03868  4.89082
-
+    Parse content of Zeo++ .chan file from string for channel dimensionality.
+    Expected format:
+    @ ... dimensionality: <int>
+    <int> included_diameter: <float> free_diameter: <float> included_along_free: <float>
+    <int> included_diameter: <float> free_diameter: <float> included_along_free: <float>
+    ...
     Returns:
-        dict: {
-            "dimension": int,
-            "included_diameter": float,
-            "free_diameter": float,
-            "included_along_free": float
-        }
-    """
+        
+        dict with keys:
+        - dimension
+        - included_diameter
+        - free_diameter
+        - included_along_free
+    
+        """
     lines = text.strip().splitlines()
     if not lines or len(lines) < 2:
-        raise ValueError("Invalid .chan content, missing required lines")
+        return {
+            "dimension": 0,
+            "included_diameter": 0.0,
+            "free_diameter": 0.0,
+            "included_along_free": 0.0
+        }
 
-    # Extract dimensionality
-    dim_line = lines[0]
-    dim = int(dim_line.split("dimensionality")[1].strip()[0])
+    try:
+        dim_line = lines[0]
+        dim = int(dim_line.split("dimensionality")[1].strip()[0])
+        tokens = lines[1].split()
+        return {
+            "dimension": dim,
+            "included_diameter": float(tokens[2]),
+            "free_diameter": float(tokens[3]),
+            "included_along_free": float(tokens[4])
+        }
+    except Exception:
+        return {
+            "dimension": 0,
+            "included_diameter": 0.0,
+            "free_diameter": 0.0,
+            "included_along_free": 0.0
+        }
 
-    # Extract Di, Df, Dif
-    tokens = lines[1].split()
-    return {
-        "dimension": dim,
-        "included_diameter": float(tokens[2]),
-        "free_diameter": float(tokens[3]),
-        "included_along_free": float(tokens[4])
-    }
 
 def parse_sa_from_text(text: str) -> dict:
     """
